@@ -8,12 +8,12 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "db:postgres:migrate": "node scripts/db/postgres-migrate.mjs",
-    "db:postgres:seed": "node scripts/db/postgres-seed.mjs",
-    "db:postgres:test": "node scripts/db/postgres-test.mjs",
-    "db:mongodb:setup": "node scripts/db/mongodb-setup.mjs",
-    "db:mongodb:seed": "node scripts/db/mongodb-seed.mjs",
-    "db:mongodb:test": "node scripts/db/mongodb-test.mjs"
+    "db:postgres:migrate": "node --env-file=.env.local scripts/db/postgres-migrate.mjs",
+    "db:postgres:seed": "node --env-file=.env.local scripts/db/postgres-seed.mjs",
+    "db:postgres:test": "node --env-file=.env.local scripts/db/postgres-test.mjs",
+    "db:mongodb:setup": "node --env-file=.env.local scripts/db/mongodb-setup.mjs",
+    "db:mongodb:seed": "node --env-file=.env.local scripts/db/mongodb-seed.mjs",
+    "db:mongodb:test": "node --env-file=.env.local scripts/db/mongodb-test.mjs"
   },
   "dependencies": {
     "next": "^16.0.0",

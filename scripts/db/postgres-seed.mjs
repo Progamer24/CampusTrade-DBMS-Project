@@ -12,16 +12,18 @@ if (!process.env.DATABASE_URL) {
 }
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+const client = await pool.connect();
 try {
   const seed = await readFile(join(root, "database/postgres/seed.sql"), "utf8");
-  await pool.query("BEGIN");
-  await pool.query(seed);
-  await pool.query("COMMIT");
+  await client.query("BEGIN");
+  await client.query(seed);
+  await client.query("COMMIT");
   console.log("PASS: PostgreSQL development seed data loaded.");
 } catch (error) {
-  await pool.query("ROLLBACK").catch(() => undefined);
+  await client.query("ROLLBACK").catch(() => undefined);
   console.error(`BLOCKED: PostgreSQL seed could not execute: ${error.message}`);
   process.exitCode = 2;
 } finally {
+  client.release();
   await pool.end();
 }
