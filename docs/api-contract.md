@@ -1,36 +1,46 @@
-# Proposed CampusTrade API contract
+# CampusTrade API contract
 
-**Status: PROPOSED — for backend-owner review only.** These routes and fields
-are suggestions, not an agreed contract. The frontend currently makes no API
-requests; the pages use local preview data and do not persist changes.
+**Status: IMPLEMENTED for authentication in Phase 3.** Listing, order and
+moderation routes remain proposed until their phases are implemented.
 
 ## Authentication
 
 ### `POST /api/auth/register`
 
-Proposed request fields:
+Request fields:
 
 | Field | Type | Notes |
 | --- | --- | --- |
 | `fullName` | string | Required |
-| `studentEmail` | string | Required; validation/domain rules need agreement |
-| `studentId` | string or omitted | Optional; confirm whether collecting this is necessary |
+| `email` | string | Required; normalized to lowercase |
+| `studentId` | string or omitted | Accepted by the UI but not persisted in Phase 3 |
 | `password` | string | Required; send only over HTTPS and hash on the server |
 
-Proposed response: authenticated student profile or a validation error. The
-backend owner should choose a secure session mechanism; an HttpOnly, Secure,
-SameSite cookie is preferable to exposing long-lived tokens to browser code.
+Response: `201` with a public student profile and an opaque session cookie. The
+password is bcrypt-hashed in PostgreSQL and is never returned. Registration
+always creates `Student`; role input is ignored. Duplicate email returns `409`.
+Validation errors return `400`.
 
 ### `POST /api/auth/login`
 
-Proposed request fields: `studentEmail` and `password`. Proposed response:
-authenticated student profile or a generic authentication error. Do not reveal
-whether an email is registered.
+Request fields: `email` and `password`. Response: public user profile and an
+opaque session cookie. Invalid credentials return the same generic `401`
+message whether the email exists or not.
 
 ### `POST /api/auth/logout` and `GET /api/auth/me`
 
-Optional session lifecycle routes. Define cookie/session behavior and response
-shape before connecting the UI.
+Logout deletes the hashed session token and clears the HTTP-only cookie. It
+requires a same-origin request and returns `204`. The session cookie is
+`campustrade_session`, `HttpOnly`, `SameSite=Lax`, `Secure` in production,
+`Path=/`, and lasts 30 days. `/api/auth/me` returns the public authenticated
+profile or `401`.
+
+### `GET /api/admin/ping`
+
+Authentication and authorization probe used by tests. It returns `401` without
+a session, `403` for Students, and `200` for Campus Admin users. Public
+registration cannot assign the Admin role. Admin elevation is a controlled
+database-operator action documented in `docs/authentication.md`.
 
 ## Listings
 

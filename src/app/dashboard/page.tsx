@@ -1,15 +1,19 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { LogoutButton } from "@/components/logout-button";
 import { SiteFooter, SiteHeader } from "@/components/site-shell";
 import { StatusBadge } from "@/components/status-badge";
+import { getCurrentUser } from "@/lib/server/auth";
 import {
   listings,
   mockRecentActivity,
-  mockStudent,
   mockStudentOrders,
   mockStudentListings,
 } from "@/lib/mock-data";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
   const myListings = mockStudentListings.flatMap(({ listingId, status }) => {
     const listing = listings.find((item) => item.id === listingId);
     return listing ? [{ ...listing, status }] : [];
@@ -30,35 +34,28 @@ export default function DashboardPage() {
       <main className="page-container dashboard-page">
         <div className="page-intro">
           <div>
-            <span className="eyebrow">STUDENT DASHBOARD · DEMO DATA</span>
-            <h1>Good to see you, {mockStudent.name.split(" ")[0]}.</h1>
+            <span className="eyebrow">STUDENT DASHBOARD · {user.role.toUpperCase()}</span>
+            <h1>Good to see you, {user.fullName.split(" ")[0]}.</h1>
             <p>Keep track of your campus listings and recent activity.</p>
           </div>
-          <Link className="button button-dark" href="/sell">
-            ＋ Create a listing
-          </Link>
+          <div className="header-actions"><Link className="button button-dark" href="/sell">＋ Create a listing</Link><LogoutButton /></div>
         </div>
 
-        <div className="preview-note" role="note">
-          Preview data only · This mock profile and its activity are not connected
-          to a student account or database.
-        </div>
+        <div className="preview-note" role="note">Signed in as {user.email}. Listing and order data will connect in the next phase.</div>
 
         <section className="profile-card" aria-labelledby="profile-heading">
           <div className="profile-avatar" aria-hidden="true">
             AS
           </div>
           <div>
-            <span className="eyebrow">MOCK STUDENT PROFILE</span>
-            <h2 id="profile-heading">{mockStudent.name}</h2>
-            <p>{mockStudent.email}</p>
+            <span className="eyebrow">AUTHENTICATED PROFILE</span>
+            <h2 id="profile-heading">{user.fullName}</h2>
+            <p>{user.email}</p>
             <span className="field-hint">
-              Student ID: {mockStudent.studentId} · Demo value
+              Role: {user.role === "Admin" ? "Campus Admin" : "Student"}
             </span>
           </div>
-          <Link href="/login" className="text-link profile-signin">
-            Sign in to connect an account
-          </Link>
+          <LogoutButton />
         </section>
 
         <section className="summary-grid" aria-label="Demo account summary">

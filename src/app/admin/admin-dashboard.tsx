@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { StatusBadge } from "@/components/status-badge";
+import type { AuthUser } from "@/lib/server/auth";
 import { listings, type Listing } from "@/lib/mock-data";
 
 type ModerationStatus = "Pending" | "Flagged" | "Approved" | "Rejected";
@@ -19,8 +20,10 @@ function getListing(listingId: number): Listing | undefined {
 
 export function AdminDashboard({
   queue: initialQueue,
+  user,
 }: {
   queue: readonly { listingId: number; status: "Pending" | "Flagged" }[];
+  user: AuthUser;
 }) {
   const [queue, setQueue] = useState<QueueItem[]>(() =>
     initialQueue.flatMap((item) => {
@@ -55,14 +58,13 @@ export function AdminDashboard({
         <div>
           <span className="eyebrow">CAMPUS MARKETPLACE · MODERATION</span>
           <h1>Admin review desk</h1>
-          <p>Review demo listings and preview moderation controls.</p>
+          <p>Review marketplace activity as {user.email}.</p>
         </div>
-        <span className="demo-stamp">DEMO DATA · NO ADMIN ACCESS</span>
+        <span className="demo-stamp">CAMPUS ADMIN ACCESS</span>
       </div>
 
       <div className="preview-note" role="note">
-        This is a UI-only moderation preview. It does not verify admin access,
-        contact users, or persist any moderation changes.
+        Admin access is verified on the server. Moderation data remains preview content until listing APIs are implemented.
       </div>
 
       <section className="summary-grid admin-summary" aria-label="Mock moderation summary">
