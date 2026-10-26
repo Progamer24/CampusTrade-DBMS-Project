@@ -136,6 +136,28 @@ The current application is a frontend preview. The following limitations apply:
 
 Do not treat preview content or actions as persisted application data.
 
+## Database foundations
+
+Phase 2 adds repeatable PostgreSQL and MongoDB setup scripts while the UI remains in preview mode. PostgreSQL owns users, inventory, orders, order items and simulated payment logs. MongoDB owns flexible listing metadata and reviews, linked through the PostgreSQL item ID. Cross-database writes do not share an ACID transaction; the recovery policy is documented in `docs/database/database-choice.md`.
+
+Database prerequisites are optional for the frontend. To initialize a local development database, copy `.env.example` to `.env.local`, set `DATABASE_URL`, `MONGODB_URI` and `MONGODB_DATABASE`, then run:
+
+```bash
+npm run db:postgres:migrate
+npm run db:postgres:seed
+npm run db:mongodb:setup
+npm run db:mongodb:seed
+```
+
+The verification scripts exercise required tables, indexes, invalid writes, duplicate writes and MongoDB validation:
+
+```bash
+npm run db:postgres:test
+npm run db:mongodb:test
+```
+
+The PostgreSQL schema, MongoDB validators and indexes, seed data, ER diagram, relational schema and data dictionary are under `database/` and `docs/database/`. Phase 2 does not connect the frontend to these databases and does not implement authentication, APIs, checkout, triggers or analytics.
+
 ## Available Checks
 
 Run these commands from the project root when you want to verify the application.

@@ -1,0 +1,58 @@
+erDiagram
+    USERS ||--o{ ITEMS : sells
+    USERS ||--o{ ORDERS : places
+    ORDERS ||--|{ ORDER_ITEMS : contains
+    ITEMS ||--o| ORDER_ITEMS : sold_as
+    ORDERS ||--o{ PAYMENT_LOGS : records
+    ITEMS ||--o| MONGODB_LISTINGS : metadata
+    ITEMS ||--o{ MONGODB_REVIEWS : receives
+    USERS ||--o{ MONGODB_REVIEWS : writes
+
+    USERS {
+        bigint id PK
+        varchar full_name
+        varchar email UK
+        varchar role
+        timestamptz created_at
+    }
+    ITEMS {
+        bigint id PK
+        bigint seller_id FK
+        varchar category
+        numeric price
+        varchar status
+        timestamptz created_at
+    }
+    ORDERS {
+        bigint id PK
+        bigint buyer_id FK
+        varchar status
+        numeric total_amount
+        timestamptz created_at
+    }
+    ORDER_ITEMS {
+        bigint id PK
+        bigint order_id FK
+        bigint item_id FK,UK
+        numeric unit_price
+    }
+    PAYMENT_LOGS {
+        bigint id PK
+        bigint order_id FK
+        varchar provider
+        varchar status
+        numeric amount
+    }
+    MONGODB_LISTINGS {
+        long postgresItemId UK
+        string title
+        string category
+        string status
+        object attributes
+    }
+    MONGODB_REVIEWS {
+        long postgresItemId FK
+        long reviewerId FK
+        int rating
+        string reviewText
+    }
