@@ -8,7 +8,7 @@ if (!process.env.DATABASE_URL) {
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
 const expectedTables = ["users", "items", "orders", "order_items", "payment_logs"];
-const expectedIndexes = ["users_email_lower_unique", "items_status_category_idx", "orders_buyer_status_idx", "order_items_item_sold_once_unique", "payment_logs_order_id_idx"];
+const expectedIndexes = ["users_email_lower_unique", "items_status_category_idx", "items_available_category_price_idx", "orders_buyer_status_idx", "orders_checkout_key_unique", "order_items_item_sold_once_unique", "payment_logs_order_id_idx"];
 
 async function mustReject(client, sql, params, label, expectedCode) {
   await client.query("SAVEPOINT constraint_test");
@@ -33,6 +33,10 @@ try {
     const indexes = await client.query("SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname = ANY($1)", [expectedIndexes]);
     if (indexes.rowCount !== expectedIndexes.length) throw new Error(`expected ${expectedIndexes.length} indexes, found ${indexes.rowCount}`);
     console.log("PASS: PostgreSQL required indexes exist.");
+
+    const views = await client.query("SELECT table_name FROM information_schema.views WHERE table_schema = 'public' AND table_name = ANY($1)", [["order_summary", "seller_inventory_summary"]]);
+    if (views.rowCount !== 2) throw new Error(`expected reporting views, found ${views.rowCount}`);
+    console.log("PASS: PostgreSQL reporting views exist.");
 
     await client.query("BEGIN");
     await mustReject(client, "INSERT INTO users (full_name, email) VALUES ($1, $2)", ["Duplicate", "aarav.sharma@campus.edu"], "duplicate user email", "23505");

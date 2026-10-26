@@ -24,6 +24,7 @@ export default function SellPage() {
   const [errors, setErrors] = useState<ListingErrors>({});
   const [previewUrl, setPreviewUrl] = useState("");
   const [submittedTitle, setSubmittedTitle] = useState("");
+  const [submissionError, setSubmissionError] = useState("");
   const readerRef = useRef<FileReader | null>(null);
 
   useEffect(() => {
@@ -68,7 +69,7 @@ export default function SellPage() {
     reader.readAsDataURL(file);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
@@ -95,8 +96,15 @@ export default function SellPage() {
     }
 
     setErrors(nextErrors);
+    setSubmissionError("");
     if (Object.keys(nextErrors).length > 0 || imageError) return;
 
+    const response = await fetch("/api/listings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: readValue(formData, "title"), description: readValue(formData, "description"), category: readValue(formData, "category"), price, condition: readValue(formData, "condition") }) });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) {
+      setSubmissionError(body?.error?.message || "The listing could not be published.");
+      return;
+    }
     setSubmittedTitle(readValue(formData, "title"));
     readerRef.current?.abort();
     readerRef.current = null;
@@ -125,7 +133,7 @@ export default function SellPage() {
       <main className="page-container sell-page">
         <div className="page-intro">
           <div>
-            <span className="eyebrow">PASS IT ON · UI PREVIEW</span>
+            <span className="eyebrow">PASS IT ON · LIVE LISTING</span>
             <h1>List something good.</h1>
             <p>Give a useful campus find its next chapter.</p>
           </div>
@@ -133,9 +141,9 @@ export default function SellPage() {
             Go to dashboard
           </Link>
         </div>
-        <div className="preview-note" role="note">
-          Preview only · Submitting this form does not publish or save a listing.
-        </div>
+        <div className="preview-note" role="note">Your listing is validated on the server and published to the authenticated account.</div>
+
+        {submissionError && <p className="field-error" role="alert">{submissionError}</p>}
 
         {submittedTitle && (
           <section className="sell-success" role="status" aria-live="polite">
@@ -145,8 +153,7 @@ export default function SellPage() {
             <div>
               <h2>Your preview is ready</h2>
               <p>
-                “{submittedTitle}” passed the form checks. It has not been
-                published or saved to a database.
+                “{submittedTitle}” is now published to the marketplace.
               </p>
               <div className="success-links">
                 <Link href="/">Browse the marketplace</Link>
@@ -325,9 +332,9 @@ export default function SellPage() {
 
           <div className="form-actions">
             <button className="button button-dark" type="submit">
-              Preview listing <span aria-hidden="true">↗</span>
+              Publish listing <span aria-hidden="true">↗</span>
             </button>
-            <p>Nothing will be published or saved.</p>
+            <p>Images remain local until storage is configured.</p>
           </div>
         </form>
       </main>

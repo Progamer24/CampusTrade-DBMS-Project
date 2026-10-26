@@ -18,3 +18,7 @@ When a future listing workflow writes both databases, it must:
 5. Reconciliation compares PostgreSQL items with MongoDB `postgresItemId` references and reports orphaned or missing metadata without deleting records automatically.
 
 The Phase 2 scripts are intentionally separate so initialization can be rerun safely. Phase 3 and later phases will apply this policy to application requests.
+
+## Checkout boundary
+
+Phase 5 checkout locks the PostgreSQL item row, creates the order/order-item/payment records, and commits the authoritative sale in PostgreSQL. The completion trigger marks the item `Sold`. Only after that commit does the application update MongoDB listing status. A MongoDB failure returns a synchronization warning and leaves the PostgreSQL sale authoritative for reconciliation; it never pretends the two databases share an ACID transaction.

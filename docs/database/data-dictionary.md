@@ -24,6 +24,19 @@
 | `payment_logs` | `status` | `VARCHAR(20)` | Pending, Succeeded, Failed, or Refunded. |
 | `payment_logs` | `amount` | `NUMERIC(12,2)` | Non-negative simulated payment amount. |
 
+| `sessions` | `user_id` | `BIGINT` | Required foreign key to `users.id`. |
+| `sessions` | `token_hash` | `CHAR(64)` | Unique SHA-256 hash of an opaque session token. |
+| `sessions` | `expires_at` | `TIMESTAMPTZ` | Session expiry used during authentication. |
+| `orders` | `checkout_key` | `VARCHAR(120)` | Optional unique retry/idempotency key. |
+
+## Advanced database evidence
+
+- Transaction: checkout writes order, order item, and simulated payment in one PostgreSQL transaction.
+- Trigger: `orders_mark_items_sold` marks inventory sold only for completed orders.
+- Indexes: availability/category/price, checkout idempotency, order ownership, and MongoDB listing/review indexes support actual query paths.
+- Views: `order_summary` and `seller_inventory_summary` provide order and seller reports.
+- MongoDB aggregation: admin analytics groups reviews by PostgreSQL item and calculates counts and average ratings.
+
 All five business tables also have `created_at`; `users`, `items`, and `orders` have `updated_at`.
 
 ## MongoDB

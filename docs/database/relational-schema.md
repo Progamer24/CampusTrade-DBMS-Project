@@ -9,9 +9,13 @@ PostgreSQL is authoritative for identity, inventory ownership and sale status, o
 - `orders`: buyer order lifecycle and total amount.
 - `order_items`: immutable purchase price for each item and a unique `item_id` constraint that prevents an item from being sold twice.
 - `payment_logs`: simulated payment provider/status and amount for an order.
+- `sessions`: hashed opaque session tokens with expiry and user ownership.
 - `schema_migrations`: applied migration names used by the repeatable migration runner.
 
+`orders.checkout_key` is a unique optional idempotency key for checkout retries. `order_summary` and `seller_inventory_summary` are reporting views. The `orders_mark_items_sold` trigger changes inventory to `Sold` only when an order becomes `Completed`.
+
 Primary and foreign keys, `NOT NULL`, `CHECK`, `UNIQUE`, and indexes are defined in `database/postgres/migrations/001_initial_schema.sql`.
+Authentication/session, checkout, trigger, view, and supporting index definitions are in `002_auth_sessions.sql` and `003_marketplace_features.sql`.
 
 ## Ownership and cross-database reference
 

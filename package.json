@@ -14,7 +14,8 @@
     "db:mongodb:setup": "node --env-file=.env.local scripts/db/mongodb-setup.mjs",
     "db:mongodb:seed": "node --env-file=.env.local scripts/db/mongodb-seed.mjs",
     "db:mongodb:test": "node --env-file=.env.local scripts/db/mongodb-test.mjs",
-    "auth:test": "node --env-file=.env.local scripts/auth-test.mjs"
+    "auth:test": "node --env-file=.env.local scripts/auth-test.mjs",
+    "marketplace:test": "node --env-file=.env.local scripts/marketplace-test.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

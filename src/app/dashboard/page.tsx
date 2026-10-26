@@ -1,32 +1,26 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
+import { ListingActions } from "@/components/listing-actions";
 import { SiteFooter, SiteHeader } from "@/components/site-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { getCurrentUser } from "@/lib/server/auth";
-import {
-  listings,
-  mockRecentActivity,
-  mockStudentOrders,
-  mockStudentListings,
-} from "@/lib/mock-data";
+import { query } from "@/lib/server/db";
+import { mongoDb, postgresId } from "@/lib/server/mongodb";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  const myListings = mockStudentListings.flatMap(({ listingId, status }) => {
-    const listing = listings.find((item) => item.id === listingId);
-    return listing ? [{ ...listing, status }] : [];
-  });
+    const listingRows = await query<{ id: string; category: string; price: string; status: string; created_at: Date }>("SELECT id, category, price, status, created_at FROM items WHERE seller_id = $1 ORDER BY created_at DESC", [user.id]);
+    const listingMetadata = await (await mongoDb()).collection("listings").find({ postgresItemId: { $in: listingRows.rows.map((row) => postgresId(row.id)) } }).toArray();
+    const metadataById = new Map(listingMetadata.map((item) => [item.postgresItemId.toString(), item]));
+    const myListings = listingRows.rows.map((row) => { const metadata = metadataById.get(row.id); return { id: Number(row.id), title: String(metadata?.title || `${row.category} listing`), category: row.category, price: Number(row.price), status: row.status, color: row.category === "Books" ? "lavender" : row.category === "Electronics" ? "blue" : "peach", emoji: row.category === "Books" ? "📚" : row.category === "Electronics" ? "🎧" : "🎒" }; });
+    const studentOrders = await query<{ order_id: string; status: string; total_amount: string; created_at: Date }>("SELECT order_id, status, total_amount, created_at FROM order_summary WHERE buyer_id = $1 ORDER BY created_at DESC", [user.id]);
   const activeListings = myListings.filter(
-    (listing) => listing.status === "Active"
+    (listing) => listing.status === "Available"
   ).length;
-  const pendingItems = mockStudentOrders.filter(
-    (order) => order.status === "Pending"
-  ).length;
-  const completedItems = mockStudentOrders.filter(
-    (order) => order.status === "Completed"
-  ).length;
+    const pendingItems = studentOrders.rows.filter((order) => order.status === "Pending").length;
+    const completedItems = studentOrders.rows.filter((order) => order.status === "Completed").length;
 
   return (
     <>
@@ -63,19 +57,19 @@ export default async function DashboardPage() {
             <span className="summary-icon">↗</span>
             <span className="summary-label">ACTIVE LISTINGS</span>
             <strong>{activeListings}</strong>
-            <small>Mock items currently listed</small>
+            <small>Listings in your account</small>
           </article>
           <article className="summary-card">
             <span className="summary-icon">◷</span>
             <span className="summary-label">PENDING REQUESTS</span>
             <strong>{pendingItems}</strong>
-            <small>Mock buyer requests and orders</small>
+            <small>Orders awaiting completion</small>
           </article>
           <article className="summary-card">
             <span className="summary-icon">✓</span>
             <span className="summary-label">COMPLETED TRANSACTIONS</span>
             <strong>{completedItems}</strong>
-            <small>Mock completed items</small>
+            <small>Completed purchases</small>
           </article>
         </section>
 
@@ -114,6 +108,7 @@ export default async function DashboardPage() {
                   >
                     View ↗
                   </Link>
+                  <ListingActions id={String(listing.id)} initialCategory={listing.category} initialPrice={listing.price} />
                 </article>
               ))}
             </div>
@@ -132,7 +127,7 @@ export default async function DashboardPage() {
         <section className="dashboard-section" aria-labelledby="recent-activity">
           <div className="section-heading dashboard-section-heading">
             <div>
-              <span className="eyebrow">DEMO ACTIVITY</span>
+              <span className="eyebrow">ACCOUNT ACTIVITY</span>
               <h2 id="recent-activity">Recent activity &amp; orders</h2>
             </div>
             <Link href="/" className="text-link">
@@ -142,14 +137,14 @@ export default async function DashboardPage() {
           <div className="activity-subsection">
             <h3>Requests &amp; orders</h3>
             <div className="activity-list">
-              {mockStudentOrders.map((order) => (
-                <article className="activity-row" key={order.id}>
+              {studentOrders.rows.map((order) => (
+                <article className="activity-row" key={order.order_id}>
                   <span className="activity-mark" aria-hidden="true">
                     ↗
                   </span>
                   <div>
-                    <h3>{order.title}</h3>
-                    <p>{order.detail}</p>
+                    <h3>Order #{order.order_id}</h3>
+                    <p>₹{Number(order.total_amount).toLocaleString("en-IN")} · {new Date(order.created_at).toLocaleDateString()}</p>
                   </div>
                   <StatusBadge status={order.status} />
                 </article>
@@ -158,16 +153,16 @@ export default async function DashboardPage() {
           </div>
           <div className="activity-subsection">
             <h3>Recent activity</h3>
-            {mockRecentActivity.length > 0 ? (
+            {studentOrders.rows.length > 0 ? (
               <div className="activity-list">
-                {mockRecentActivity.map((activity) => (
-                  <article className="activity-row" key={activity.id}>
+                {studentOrders.rows.map((activity) => (
+                  <article className="activity-row" key={`activity-${activity.order_id}`}>
                     <span className="activity-mark" aria-hidden="true">
                       ✳
                     </span>
                     <div>
-                      <h3>{activity.title}</h3>
-                      <p>{activity.detail}</p>
+                      <h3>Order #{activity.order_id} updated</h3>
+                      <p>{activity.status} · ₹{Number(activity.total_amount).toLocaleString("en-IN")}</p>
                     </div>
                     <StatusBadge status={activity.status} />
                   </article>
@@ -183,7 +178,7 @@ export default async function DashboardPage() {
             )}
           </div>
           <p className="dashboard-disclaimer">
-            Orders, statuses and activity above are sample UI content only.
+            Orders and statuses above are database-backed account records.
           </p>
         </section>
       </main>

@@ -1,51 +1,41 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StatusBadge } from "@/components/status-badge";
 import type { AuthUser } from "@/lib/server/auth";
-import { listings, type Listing } from "@/lib/mock-data";
 
 type ModerationStatus = "Pending" | "Flagged" | "Approved" | "Rejected";
-type QueueItem = { listingId: number; status: ModerationStatus };
-
-const mockUserActivity = [
-  { id: "user-report", title: "A demo user report was received", detail: "Sample report · 35 minutes ago" },
-  { id: "user-review", title: "A mock student profile was reviewed", detail: "Demo moderation activity · Yesterday" },
-];
-
-function getListing(listingId: number): Listing | undefined {
-  return listings.find((listing) => listing.id === listingId);
-}
+type QueueItem = { listingId: string; status: ModerationStatus; category: string; price: number; seller: string; title: string };
 
 export function AdminDashboard({
   queue: initialQueue,
   user,
 }: {
-  queue: readonly { listingId: number; status: "Pending" | "Flagged" }[];
+  queue: readonly QueueItem[];
   user: AuthUser;
 }) {
-  const [queue, setQueue] = useState<QueueItem[]>(() =>
-    initialQueue.flatMap((item) => {
-      const listing = getListing(item.listingId);
-      return listing
-        ? [{ listingId: item.listingId, status: item.status }]
-        : [];
-    })
-  );
+  const [queue, setQueue] = useState<QueueItem[]>(() => [...initialQueue]);
   const [notice, setNotice] = useState("");
+  const [analytics, setAnalytics] = useState<{ overview?: { total_items: number; available_items: number; sold_items: number; completed_orders: number; completed_revenue: string }; byCategory?: { category: string; item_count: number }[] }>({});
 
-  function updateStatus(listingId: number, status: ModerationStatus) {
-    const listing = getListing(listingId);
-    if (!listing) return;
+  useEffect(() => { fetch("/api/admin/analytics").then((response) => response.ok ? response.json() : null).then((body) => { if (body) setAnalytics(body); }); }, []);
 
+  async function updateStatus(listingId: string, status: ModerationStatus) {
+    const action = status === "Approved" ? "approve" : status === "Rejected" ? "reject" : "flag";
+    const response = await fetch(`/api/admin/moderation/listings/${listingId}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }) });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setNotice(body?.error?.message || "Moderation update failed.");
+      return;
+    }
     setQueue((current) =>
       current.map((item) =>
         item.listingId === listingId ? { ...item, status } : item
       )
     );
     setNotice(
-      `Preview only: "${listing.title}" is marked ${status.toLowerCase()} on this page. The change was not saved.`
+      `"${queue.find((item) => item.listingId === listingId)?.title || "Listing"}" is marked ${status.toLowerCase()}.`
     );
   }
 
@@ -64,7 +54,7 @@ export function AdminDashboard({
       </div>
 
       <div className="preview-note" role="note">
-        Admin access is verified on the server. Moderation data remains preview content until listing APIs are implemented.
+        Admin access and moderation writes are verified on the server.
       </div>
 
       <section className="summary-grid admin-summary" aria-label="Mock moderation summary">
@@ -72,29 +62,29 @@ export function AdminDashboard({
           <span className="summary-icon">◷</span>
           <span className="summary-label">AWAITING REVIEW</span>
           <strong>{pendingCount}</strong>
-          <small>Current demo queue</small>
+          <small>Database listing queue</small>
         </article>
         <article className="summary-card">
           <span className="summary-icon">⚑</span>
           <span className="summary-label">FLAGGED LISTINGS</span>
           <strong>{flaggedCount}</strong>
-          <small>Current demo queue</small>
+          <small>Database listing queue</small>
         </article>
         <article className="summary-card">
           <span className="summary-icon">▦</span>
           <span className="summary-label">SAMPLE LISTINGS</span>
-          <strong>{listings.length}</strong>
-          <small>Static preview records</small>
+          <strong>{queue.length}</strong>
+          <small>Database listing records</small>
         </article>
       </section>
 
       <section className="dashboard-section" aria-labelledby="moderation-queue">
         <div className="section-heading dashboard-section-heading">
           <div>
-            <span className="eyebrow">LISTING MODERATION · MOCK DATA</span>
+            <span className="eyebrow">LISTING MODERATION · LIVE DATA</span>
             <h2 id="moderation-queue">Moderation queue</h2>
           </div>
-          <span className="listing-count">{queue.length} DEMO RECORDS</span>
+          <span className="listing-count">{queue.length} RECORDS</span>
         </div>
 
         {notice && (
@@ -106,45 +96,41 @@ export function AdminDashboard({
         {queue.length > 0 ? (
           <div className="moderation-list">
             {queue.map((item) => {
-              const listing = getListing(item.listingId);
-              if (!listing) return null;
-
               return (
-                <article className="moderation-card" key={listing.id}>
-                  <div className={`dashboard-item-icon ${listing.color}`}>
-                    <span aria-hidden="true">{listing.emoji}</span>
+                <article className="moderation-card" key={item.listingId}>
+                  <div className="dashboard-item-icon mint">
+                    <span aria-hidden="true">✳</span>
                   </div>
                   <div className="moderation-copy">
-                    <span className="product-category">{listing.category}</span>
-                    <h3>{listing.title}</h3>
+                    <span className="product-category">{item.category}</span>
+                    <h3>{item.title}</h3>
                     <p>
-                      Listed by {listing.seller} · ₹
-                      {listing.price.toLocaleString("en-IN")} · {listing.condition}
+                      Listed by {item.seller} · ₹{item.price.toLocaleString("en-IN")}
                     </p>
                   </div>
                   <StatusBadge status={item.status} />
-                  <div className="moderation-actions" aria-label={`Preview actions for ${listing.title}`}>
-                    <Link className="text-link" href={`/listings/${listing.id}`}>
+                  <div className="moderation-actions" aria-label={`Actions for ${item.title}`}>
+                    <Link className="text-link" href={`/listings/${item.listingId}`}>
                       View
                     </Link>
                     <button
                       className="moderation-action approve-action"
                       type="button"
-                      onClick={() => updateStatus(listing.id, "Approved")}
+                      onClick={() => updateStatus(item.listingId, "Approved")}
                     >
                       Approve
                     </button>
                     <button
                       className="moderation-action flag-action"
                       type="button"
-                      onClick={() => updateStatus(listing.id, "Flagged")}
+                      onClick={() => updateStatus(item.listingId, "Flagged")}
                     >
                       Flag
                     </button>
                     <button
                       className="moderation-action reject-action"
                       type="button"
-                      onClick={() => updateStatus(listing.id, "Rejected")}
+                      onClick={() => updateStatus(item.listingId, "Rejected")}
                     >
                       Reject
                     </button>
@@ -165,27 +151,13 @@ export function AdminDashboard({
       <section className="dashboard-section" aria-labelledby="moderation-activity">
         <div className="section-heading dashboard-section-heading">
           <div>
-            <span className="eyebrow">USER &amp; LISTING ACTIVITY · MOCK</span>
-            <h2 id="moderation-activity">Recent moderation activity</h2>
+            <span className="eyebrow">DATABASE ANALYTICS</span>
+            <h2 id="moderation-activity">Marketplace overview</h2>
           </div>
         </div>
-        <div className="activity-list">
-          {mockUserActivity.map((activity) => (
-            <article className="activity-row" key={activity.id}>
-              <span className="activity-mark" aria-hidden="true">
-                ✳
-              </span>
-              <div>
-                <h3>{activity.title}</h3>
-                <p>{activity.detail}</p>
-              </div>
-              <StatusBadge status="Demo" />
-            </article>
-          ))}
-        </div>
+        <div className="activity-list"><article className="activity-row"><span className="activity-mark">▦</span><div><h3>{analytics.overview?.total_items ?? "-"} total listings</h3><p>{analytics.overview?.available_items ?? "-"} available · {analytics.overview?.sold_items ?? "-"} sold</p></div><StatusBadge status="Live" /></article><article className="activity-row"><span className="activity-mark">₹</span><div><h3>{analytics.overview?.completed_orders ?? "-"} completed orders</h3><p>₹{Number(analytics.overview?.completed_revenue || 0).toLocaleString("en-IN")} completed revenue</p></div><StatusBadge status="Live" /></article></div>
         <p className="dashboard-disclaimer">
-          All names, reports, counts and activity are fabricated demo content;
-          no live user data or analytics are shown.
+          Analytics are calculated from PostgreSQL views and MongoDB review aggregation.
         </p>
       </section>
     </main>

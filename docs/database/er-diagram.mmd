@@ -7,6 +7,7 @@ erDiagram
     ITEMS ||--o| MONGODB_LISTINGS : metadata
     ITEMS ||--o{ MONGODB_REVIEWS : receives
     USERS ||--o{ MONGODB_REVIEWS : writes
+    USERS ||--o{ SESSIONS : authenticates
 
     USERS {
         bigint id PK
@@ -55,4 +56,10 @@ erDiagram
         long reviewerId FK
         int rating
         string reviewText
+    }
+    SESSIONS {
+        bigint id PK
+        bigint user_id FK
+        char token_hash UK
+        timestamptz expires_at
     }
